@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PWA 설치 진단</title>
+<style>
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#0B3A2E;color:#fff;margin:0;padding:16px;font-size:15px;line-height:1.6}
+h1{font-size:18px;margin:0 0 16px}
+.row{background:#0f4a3a;border-radius:10px;padding:12px 14px;margin-bottom:10px;word-break:break-all}
+.ok{border-left:5px solid #34D399}
+.bad{border-left:5px solid #EF4444}
+.warn{border-left:5px solid #FBBF24}
+.label{font-weight:700;font-size:13px;opacity:.85;margin-bottom:4px}
+.val{font-size:14px}
+#install{margin-top:14px;width:100%;padding:14px;border:0;border-radius:10px;background:#34D399;color:#03150F;font-size:16px;font-weight:700}
+#install:disabled{background:#555;color:#999}
+.big{font-size:16px;font-weight:700;margin:18px 0 8px}
+</style>
+</head>
+<body>
+<h1>🔍 M-stock PWA 설치 진단</h1>
+<div id="out"></div>
+<div class="big">설치 버튼 (크롬이 설치 가능으로 인식하면 초록색으로 활성화됨):</div>
+<button id="install" disabled>아직 설치 불가 (대기 중...)</button>
+
+<script>
+const out=document.getElementById('out');
+function add(label,val,status){
+  const d=document.createElement('div');
+  d.className='row '+status;
+  d.innerHTML='<div class="label">'+label+'</div><div class="val">'+val+'</div>';
+  out.appendChild(d);
+}
+
+// 1. HTTPS 확인
+add('1. 접속 프로토콜', location.protocol, location.protocol==='https:'?'ok':'bad');
+
+// 2. 현재 URL
+add('2. 현재 주소', location.href, 'ok');
+
+// 3. Service Worker 지원 여부
+if('serviceWorker' in navigator){
+  add('3. 서비스워커 지원', '브라우저가 지원함 ✓', 'ok');
+  // sw.js 등록 시도
+  navigator.serviceWorker.register('sw.js')
+    .then(reg=>{
+      add('4. sw.js 등록', '성공 ✓ scope: '+reg.scope, 'ok');
+    })
+    .catch(err=>{
+      add('4. sw.js 등록', '❌ 실패: '+err.message+' (sw.js 파일이 같은 폴더에 없거나 경로 문제)', 'bad');
+    });
+}else{
+  add('3. 서비스워커 지원', '❌ 미지원', 'bad');
+}
+
+// 5. manifest 링크가 HTML에 있는지
+const mlink=document.querySelector('link[rel="manifest"]');
+if(mlink){
+  add('5. manifest 링크', '있음 ✓ href: '+mlink.href, 'ok');
+  // manifest 실제 로딩 테스트
+  fetch(mlink.href)
+    .then(r=>{
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(m=>{
+      add('6. manifest.json 로딩', '성공 ✓ name: '+m.name, 'ok');
+      const ic=m.icons&&m.icons.length?m.icons.length+'개':'없음';
+      add('7. manifest 아이콘', ic+' / start_url: '+(m.start_url||'없음')+' / display: '+(m.display||'없음'),
+          (m.icons&&m.icons.length&&m.display==='standalone')?'ok':'warn');
+    })
+    .catch(err=>{
+      add('6. manifest.json 로딩', '❌ 실패: '+err.message, 'bad');
+    });
+}else{
+  add('5. manifest 링크', '❌ HTML에 manifest 링크 없음', 'bad');
+}
+
+// 8. 이미 standalone(앱)으로 실행 중인지
+const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone;
+add('8. 현재 실행 모드', standalone?'앱(standalone) 모드 ✓':'브라우저 탭에서 실행 중', standalone?'ok':'warn');
+
+// 설치 가능 이벤트
+let deferred=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferred=e;
+  const btn=document.getElementById('install');
+  btn.disabled=false;
+  btn.textContent='✅ 설치 가능! 눌러서 설치';
+  add('★ 설치 가능 이벤트', '크롬이 "설치 가능"으로 인식함! 아래 초록 버튼이 활성화됨', 'ok');
+});
+document.getElementById('install').onclick=async()=>{
+  if(deferred){ deferred.prompt(); const r=await deferred.userChoice; add('설치 결과', r.outcome, 'ok'); }
+};
+
+// 3초 후에도 설치 이벤트 없으면 경고
+setTimeout(()=>{
+  if(!deferred && !standalone){
+    add('★ 설치 가능 이벤트', '⚠️ 3초간 설치 이벤트가 안 떴음. 위 항목 중 ❌ 빨간 줄을 확인하세요. 모두 ✓인데도 안 뜨면 이미 설치됐거나 크롬이 잠시 보류한 것일 수 있음 (페이지 새로고침 시도)', 'warn');
+  }
+},3000);
+</script>
+</body>
+</html>
