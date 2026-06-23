@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>index.html 검증</title>
+<style>
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#0B3A2E;color:#fff;margin:0;padding:16px;font-size:15px;line-height:1.6}
+h1{font-size:18px;margin:0 0 16px}
+.row{background:#0f4a3a;border-radius:10px;padding:14px;margin-bottom:12px;word-break:break-all}
+.ok{border-left:6px solid #34D399}
+.bad{border-left:6px solid #EF4444}
+.warn{border-left:6px solid #FBBF24}
+.label{font-weight:700;font-size:15px;margin-bottom:6px}
+.val{font-size:14px;opacity:.95}
+.huge{font-size:17px;font-weight:800;padding:16px}
+code{background:#03150F;padding:2px 6px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<h1>🔬 실제 index.html 검증</h1>
+<div id="out"><div class="row warn"><div class="val">index.html 읽는 중...</div></div></div>
+
+<script>
+const out=document.getElementById('out');
+function set(html){out.innerHTML=html;}
+
+fetch('index.html?'+Date.now())  // 캐시 우회
+  .then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.text();
+  })
+  .then(html=>{
+    let result='';
+
+    // 1. manifest 링크가 정적으로 들어있는지
+    const hasStaticManifest = /rel\s*=\s*["']manifest["']/.test(html) && /manifest\.json/.test(html);
+    // 2. 옛날 blob 방식인지
+    const hasBlobManifest = /createObjectURL/.test(html);
+    // 3. JS로 manifest 링크 삽입하는 새 버전인지
+    const hasJsManifest = /ml\.href\s*=\s*['"]manifest\.json['"]/.test(html) || /href\s*=\s*['"]manifest\.json['"]/.test(html);
+
+    if(hasJsManifest && !hasBlobManifest){
+      result += '<div class="row ok huge">✅ 깃헙의 index.html이 <b>새 버전(manifest.json 링크)</b>입니다! 정상이에요.</div>';
+    } else if(hasBlobManifest){
+      result += '<div class="row bad huge">❌ 깃헙의 index.html이 <b>옛날 버전(blob 방식)</b>입니다!<br><br>→ 받은 새 index.html이 깃헙에 안 올라갔어요. index.html을 새 파일로 덮어쓰고 다시 올려야 합니다.</div>';
+    } else if(hasStaticManifest){
+      result += '<div class="row ok huge">✅ manifest.json 링크가 들어있습니다.</div>';
+    } else {
+      result += '<div class="row bad huge">❌ index.html에 manifest 링크가 전혀 없습니다. 새 index.html로 교체 필요.</div>';
+    }
+
+    // 상세 정보
+    result += '<div class="row '+(hasJsManifest?'ok':'bad')+'"><div class="label">manifest.json 링크 코드</div><div class="val">'+(hasJsManifest?'있음 ✓':'없음 ❌')+'</div></div>';
+    result += '<div class="row '+(hasBlobManifest?'bad':'ok')+'"><div class="label">옛날 blob 방식 (createObjectURL)</div><div class="val">'+(hasBlobManifest?'❌ 아직 남아있음 (옛날 버전)':'없음 ✓ (제거됨)')+'</div></div>';
+
+    // sw.js 등록 코드 확인
+    const hasSwFile = /register\(\s*['"]sw\.js['"]/.test(html);
+    result += '<div class="row '+(hasSwFile?'ok':'warn')+'"><div class="label">sw.js 파일 등록 코드</div><div class="val">'+(hasSwFile?'있음 ✓':'⚠️ 없음 (blob 방식일 수 있음)')+'</div></div>';
+
+    // HTML 첫 600자 미리보기
+    const head = html.slice(0,600).replace(/</g,'&lt;');
+    result += '<div class="row warn"><div class="label">index.html 앞부분 미리보기</div><div class="val"><code>'+head+'...</code></div></div>';
+
+    set(result);
+  })
+  .catch(err=>{
+    set('<div class="row bad huge">❌ index.html을 읽지 못했습니다: '+err.message+'</div>');
+  });
+</script>
+</body>
+</html>
