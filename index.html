@@ -846,7 +846,10 @@ function updateSessionBar(){
   const KST=new Date(now.toLocaleString("en-US",{timeZone:"Asia/Seoul"}));
   const h=KST.getHours(),m=KST.getMinutes(),s=KST.getSeconds(),day=KST.getDay();
   const total=h*3600+m*60+s;
-  const PRE=8*3600+30*60,OPEN=9*3600,CLOSE=15*3600+30*60,POST=16*3600;
+  // NXT(넥스트레이드) 시간대: 프리 08:00~08:50, 메인 09:00~15:20, 애프터 15:30~20:00
+  const T=(hh,mm)=>hh*3600+mm*60;
+  const PRE_OPEN=T(8,0),PRE_CLOSE=T(8,50),KRX_OPEN=T(9,0),KRX_CLOSE=T(15,30),
+        NXT_MAIN_CLOSE=T(15,20),AFT_OPEN=T(15,30),AFT_CLOSE=T(20,0);
   const weekend=day===0||day===6;
   const iconEl=document.getElementById("session-icon"),labelEl=document.getElementById("session-label");
   const timeEl=document.getElementById("session-time"),nextEl=document.getElementById("next-session-info");
@@ -856,12 +859,31 @@ function updateSessionBar(){
   const etH=((h-14)+24)%24;
   const usOpen=etH>=9.5&&etH<16;
   const usLabel=usOpen?"🇺🇸 미증시 개장중":"🇺🇸 미증시 마감";
-  if(weekend){iconEl.textContent="🌙";labelEl.textContent=day===6?"토요일 — 장 휴장":"일요일 — 장 휴장";labelEl.style.color="rgba(255,255,255,0.4)";timeEl.textContent=usLabel;timeEl.style.color=usOpen?"#DC2626":"rgba(255,255,255,0.3)";nextEl.textContent="월요일 08:30";}
-  else if(total<PRE){iconEl.textContent="🌅";labelEl.textContent="장 준비중";labelEl.style.color="#F59E0B";timeEl.textContent=`동시호가까지 ${cd(PRE)}`;timeEl.style.color="#F59E0B";nextEl.textContent="08:30 동시호가";}
-  else if(total<OPEN){iconEl.textContent="⚡";labelEl.textContent="장전 동시호가";labelEl.style.color="#F97316";timeEl.textContent=`개장까지 ${cd(OPEN)}`;timeEl.style.color="#F97316";nextEl.textContent="09:00 정규장";}
-  else if(total<CLOSE){iconEl.textContent="📈";labelEl.textContent="정규장 거래중 🟢";labelEl.style.color="#DC2626";timeEl.textContent=`마감까지 ${cd(CLOSE)}`;timeEl.style.color="#DC2626";nextEl.textContent="15:30 장마감";}
-  else if(total<POST){iconEl.textContent="🔔";labelEl.textContent="장후 동시호가";labelEl.style.color="#60A5FA";timeEl.textContent=`종료까지 ${cd(POST)}`;timeEl.style.color="#60A5FA";nextEl.textContent=day===5?"월요일 09:00":"내일 09:00";}
-  else{iconEl.textContent="🌙";labelEl.textContent="오늘 장마감";labelEl.style.color="rgba(255,255,255,0.4)";timeEl.textContent=usLabel;timeEl.style.color=usOpen?"#DC2626":"rgba(255,255,255,0.3)";nextEl.textContent=day===5?"월요일 08:30":"내일 08:30";}
+  const set=(ic,lb,lc,tm,tc,nx)=>{iconEl.textContent=ic;labelEl.textContent=lb;labelEl.style.color=lc;timeEl.textContent=tm;timeEl.style.color=tc;nextEl.textContent=nx;};
+  if(weekend){
+    set("🌙",day===6?"토요일 — 장 휴장":"일요일 — 장 휴장","rgba(255,255,255,0.4)",usLabel,usOpen?"#DC2626":"rgba(255,255,255,0.3)","월요일 08:00 NXT프리");
+  }
+  else if(total<PRE_OPEN){
+    set("🌅","장 준비중","#F59E0B",`NXT 프리마켓까지 ${cd(PRE_OPEN)}`,"#F59E0B","08:00 NXT 프리마켓");
+  }
+  else if(total<PRE_CLOSE){
+    set("🌄","NXT 프리마켓 🟣","#A78BFA",`프리마켓 마감까지 ${cd(PRE_CLOSE)}`,"#A78BFA","09:00 정규장(KRX·NXT)");
+  }
+  else if(total<KRX_OPEN){
+    set("⚡","장전 동시호가","#F97316",`개장까지 ${cd(KRX_OPEN)}`,"#F97316","09:00 정규장");
+  }
+  else if(total<NXT_MAIN_CLOSE){
+    set("📈","정규장 거래중 🟢","#DC2626",`NXT 메인 마감까지 ${cd(NXT_MAIN_CLOSE)}`,"#DC2626","15:30 장마감(KRX)");
+  }
+  else if(total<KRX_CLOSE){
+    set("🔔","장 마감 동시호가","#60A5FA",`KRX 마감까지 ${cd(KRX_CLOSE)}`,"#60A5FA","15:30 NXT 애프터마켓");
+  }
+  else if(total<AFT_CLOSE){
+    set("🌆","NXT 애프터마켓 🟣","#A78BFA",`애프터마켓 마감까지 ${cd(AFT_CLOSE)}`,"#A78BFA",day===5?"월요일 08:00":"내일 08:00");
+  }
+  else{
+    set("🌙","오늘 장마감","rgba(255,255,255,0.4)",usLabel,usOpen?"#DC2626":"rgba(255,255,255,0.3)",day===5?"월요일 08:00 NXT프리":"내일 08:00 NXT프리");
+  }
 }
 
 // ── 공포탐욕 계산 ─────────────────────────────────────────────────────────
