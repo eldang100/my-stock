@@ -474,7 +474,7 @@ function editCash(){
   const v=Number(String(input).replace(/[^0-9]/g,""));
   if(isNaN(v)||v<0){notify("올바른 금액을 입력해주세요");return;}
   state.cash=v;
-  try{localStorage.setItem("cash_v1",String(v));}catch(e){}
+  saveCash();
   render();
   notify(`💵 현금 ${v.toLocaleString()}원으로 설정`);
 }
@@ -569,7 +569,62 @@ function addHolding(code,qty,avgPrice){
   else{state.holdings.push({code,name:STOCKS[code]?.name||code,qty,avgPrice,date:new Date().toLocaleDateString("ko-KR")});}
   saveHoldings();
 }
-function removeHolding(code){state.holdings=state.holdings.filter(h=>h.code!==code);saveHoldings();}
+function saveCash(){try{localStorage.setItem("cash_v1",String(state.cash||0));}catch(e){}}
+function removeHolding(code){
+  const h=state.holdings.find(x=>x.code===code);
+  if(h){ // 보유 삭제 시 매입원금만큼 현금으로 환원
+    state.cash=(state.cash||0)+h.qty*h.avgPrice;
+    saveCash();
+  }
+  state.holdings=state.holdings.filter(h=>h.code!==code);saveHoldings();
+}
+
+// ── 백업 / 복구 ────────────────────────────────────────────────────────────
+// 크롬 데이터 삭제 시 초기화되므로, 모든 저장값을 JSON 파일로 백업/복구
+const BACKUP_KEYS=["watchlist_v1","holdings_v1","customSectors_v1","alerts_v1","cash_v1","customStocks_v1","settings_v1"];
+function exportBackup(){
+  try{
+    const data={};
+    for(const k of BACKUP_KEYS){const v=localStorage.getItem(k);if(v!==null)data[k]=v;}
+    const payload={app:"my-stock",version:1,exportedAt:new Date().toISOString(),data};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const d=new Date();
+    const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}`;
+    a.href=url;a.download=`mystock_backup_${stamp}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    notify("💾 백업 파일을 저장했어요");
+  }catch(e){notify("백업 실패: "+e.message);}
+}
+function importBackupFile(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=JSON.parse(reader.result);
+      const data=parsed&&parsed.data?parsed.data:parsed;
+      if(!data||typeof data!=="object"){notify("올바른 백업 파일이 아니에요");return;}
+      let n=0;
+      for(const k of BACKUP_KEYS){
+        if(data[k]!==undefined&&data[k]!==null){localStorage.setItem(k,data[k]);n++;}
+      }
+      if(n===0){notify("복구할 데이터가 없어요");return;}
+      // state에 즉시 반영
+      loadWatchlist();loadCustomStocks();
+      notify(`✅ ${n}개 항목 복구 완료`);
+      setTimeout(()=>location.reload(),800); // 전체 새로고침으로 깔끔히 반영
+    }catch(e){notify("복구 실패: 파일을 확인해주세요");}
+  };
+  reader.onerror=()=>notify("파일 읽기 실패");
+  reader.readAsText(file);
+}
+function triggerImport(){
+  const inp=document.createElement("input");
+  inp.type="file";inp.accept="application/json,.json";
+  inp.onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)importBackupFile(f);};
+  inp.click();
+}
 
 // ── State ─────────────────────────────────────────────────────────────────
 let state={
@@ -1443,9 +1498,12 @@ function confirmQuickHolding(code){
   const avg=Number(document.getElementById("qh-avg")?.value);
   if(!qty||qty<=0){notify("수량을 입력해주세요");return;}
   if(!avg||avg<=0){notify("평균 매수가를 입력해주세요");return;}
+  const cost=qty*avg; // 매입금액
   addHolding(code,qty,avg);
+  state.cash=Math.max((state.cash||0)-cost,0); // 현금에서 자동 차감 (음수 방지)
+  saveCash();
   document.getElementById("quick-holding-overlay")?.remove();
-  notify(`💼 ${STOCKS[code]?.name||code} ${qty}주 보유 추가 완료`);
+  notify(`💼 ${STOCKS[code]?.name||code} ${qty}주 추가 · 현금 -${cost.toLocaleString()}원`);
   render();
 }
 function saveAlertFromModal(code){
@@ -1552,7 +1610,11 @@ function renderHoldings(){
   let h=`<div style="background:linear-gradient(135deg,#3A3550,#4A4268);border-radius:13px;padding:10px 13px;margin-bottom:8px;box-shadow:0 3px 12px rgba(58,53,80,0.2)">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:11px;color:#F0D896;font-weight:700;letter-spacing:0.5px">💎 총 자산 (현금 포함)</span>
-      <button onclick="editCash()" style="background:rgba(240,216,150,0.15);border:1px solid rgba(240,216,150,0.4);border-radius:6px;color:#F0D896;padding:2px 8px;cursor:pointer;font-size:10px;font-weight:700">현금수정</button>
+      <div style="display:flex;gap:5px">
+        <button onclick="exportBackup()" style="background:rgba(240,216,150,0.15);border:1px solid rgba(240,216,150,0.4);border-radius:6px;color:#F0D896;padding:2px 8px;cursor:pointer;font-size:10px;font-weight:700">💾백업</button>
+        <button onclick="triggerImport()" style="background:rgba(240,216,150,0.15);border:1px solid rgba(240,216,150,0.4);border-radius:6px;color:#F0D896;padding:2px 8px;cursor:pointer;font-size:10px;font-weight:700">📥복구</button>
+        <button onclick="editCash()" style="background:rgba(240,216,150,0.15);border:1px solid rgba(240,216,150,0.4);border-radius:6px;color:#F0D896;padding:2px 8px;cursor:pointer;font-size:10px;font-weight:700">현금수정</button>
+      </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px">
       <span style="font-size:24px;font-weight:900;color:#FFFFFF;letter-spacing:-0.5px">${Math.round(totalAsset).toLocaleString()}원</span>
@@ -2159,7 +2221,12 @@ function confirmHolding(code){
   const qty=parseInt(document.getElementById("hq-"+code)?.value||"0");
   const avg=parseInt(document.getElementById("ha-"+code)?.value||"0");
   if(!qty||!avg){alert("수량과 평균단가를 입력해주세요!");return;}
-  addHolding(code,qty,avg);closeSearch();switchTab("holdings");
+  const cost=qty*avg;
+  addHolding(code,qty,avg);
+  state.cash=Math.max((state.cash||0)-cost,0); // 현금 자동 차감
+  saveCash();
+  notify(`💼 ${STOCKS[code]?.name||code} ${qty}주 추가 · 현금 -${cost.toLocaleString()}원`);
+  closeSearch();switchTab("holdings");
 }
 
 function searchItemHTML(code,name,sector,lp,lc,isUp,w,inH,isHolding,mode){
