@@ -1762,23 +1762,25 @@ function renderHoldings(){
     const pnl2=cur-inv,pct2=inv>0?(pnl2/inv)*100:0;
     const{score,color,emoji}=calcStockFng(holding.code);
     h+=`<div class="reorder-item" data-list="holdings" data-idx="${hi}" data-code="${holding.code}" style="background:#F0EDE6;border-radius:10px;margin-bottom:6px;border:1.5px solid rgba(220,38,38,0.22);box-shadow:0 1px 5px rgba(26,26,46,0.05);overflow:hidden">
-      <div style="display:flex;align-items:center;padding:7px 10px;cursor:pointer" data-openstock="${holding.code}">
-        <span class="drag-handle" data-list="holdings" data-idx="${hi}" style="cursor:grab;color:#B0A090;font-size:15px;padding:0 7px 0 0;touch-action:none;flex-shrink:0">⠿</span>
+      <div style="display:flex;align-items:center;padding:8px 10px;cursor:pointer;gap:8px" data-openstock="${holding.code}">
+        <span class="drag-handle" data-list="holdings" data-idx="${hi}" style="cursor:grab;color:#B0A090;font-size:15px;touch-action:none;flex-shrink:0">⠿</span>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:5px">
-            <span style="font-weight:800;font-size:15px;color:#1A1A2E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${holding.name}</span>
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <span style="font-weight:800;font-size:15px;color:#1A1A2E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${holding.name}</span>
             <span style="font-size:10px;background:${color}18;color:${color};padding:1px 5px;border-radius:4px;border:1px solid ${color}33;flex-shrink:0">${emoji}${score}</span>
-            <span style="font-size:11px;font-weight:800;color:#1A1A2E;background:#E8E0D0;padding:1px 6px;border-radius:5px;flex-shrink:0">${holding.qty.toLocaleString()}주</span>
-            <span style="font-size:11px;font-weight:700;color:#5A4F42;background:#F0EBE0;padding:1px 6px;border-radius:5px;white-space:nowrap;flex-shrink:0">@${holding.avgPrice.toLocaleString()}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px;font-weight:800;color:#1A1A2E;background:#E3D9C4;padding:2px 8px;border-radius:6px;flex-shrink:0">${holding.qty.toLocaleString()}주</span>
+            <span style="font-size:13px;font-weight:800;color:#5A4F42;background:#EAE2D2;padding:2px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0">@${holding.avgPrice.toLocaleString()}</span>
           </div>
         </div>
-        <div style="text-align:right;margin:0 7px;flex-shrink:0">
-          <div style="font-weight:800;font-size:15px;color:#1A1A2E">${lp.toLocaleString()}원</div>
-          <div style="font-size:13px;color:${isUp?"#DC2626":"#1D4ED8"};font-weight:700">${isUp?"▲":"▼"}${Math.abs(lc).toFixed(2)}%</div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:900;font-size:16px;color:#1A1A2E">${lp.toLocaleString()}원</div>
+          <div style="font-size:13px;color:${isUp?"#DC2626":"#1D4ED8"};font-weight:800">${isUp?"▲":"▼"}${Math.abs(lc).toFixed(2)}%</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-          <button onclick="event.stopPropagation();openQuickHolding('${holding.code}')" style="background:#ECFDF5;border:1px solid #6EE7B7;border-radius:7px;color:#059669;padding:5px 7px;cursor:pointer;font-size:12px;font-weight:800;white-space:nowrap" title="추가 매수">＋추매</button>
-          <button onclick="event.stopPropagation();removeHolding('${holding.code}');render()" style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:7px;color:#DC2626;padding:5px 7px;cursor:pointer;font-size:13px">✕</button>
+          <button onclick="event.stopPropagation();openQuickHolding('${holding.code}')" style="background:#ECFDF5;border:1px solid #6EE7B7;border-radius:7px;color:#059669;padding:5px 8px;cursor:pointer;font-size:12px;font-weight:800;white-space:nowrap" title="추가 매수">＋추매</button>
+          <button onclick="event.stopPropagation();removeHolding('${holding.code}');render()" style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:7px;color:#DC2626;padding:5px 8px;cursor:pointer;font-size:13px">✕</button>
         </div>
       </div>
       <div style="background:#E8E3DB;border-top:1px solid #DDD5C8;padding:5px 10px;display:flex;justify-content:space-around">
